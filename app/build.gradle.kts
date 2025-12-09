@@ -27,6 +27,8 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            isDebuggable = false
+            debuggable = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -35,16 +37,23 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             isDebuggable = true
+            debuggable = true
             signingConfig = signingConfigs.getByName("debug")
         }
-        // A debug-derived build type signed with debug key but non-debuggable
+        // A debug-derived build type signed with debug key but FULLY NON-DEBUGGABLE
+        // No debugger wait dialog, no debugger connection required
         create("userDebug") {
-            initWith(debug)
-            // Ensure the variant is not debuggable so it behaves like a normal user APK
-            isDebuggable = false
-            // Optional: install side-by-side with other builds
             applicationIdSuffix = ".user"
             signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks = mutableListOf("debug")
+            
+            // Explicitly disable all debugging features
+            isDebuggable = false
+            debuggable = false
+            
+            // Make sure we don't inherit unwanted flags from debug
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 

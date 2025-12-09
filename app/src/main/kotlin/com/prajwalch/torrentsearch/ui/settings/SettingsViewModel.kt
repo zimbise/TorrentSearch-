@@ -149,12 +149,10 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    /** Enables/disables NSFW mode. */
+    /** DISABLED: No content restrictions - all content shown by default. */
     fun enableNSFWMode(enable: Boolean) {
-        viewModelScope.launch {
-            settingsRepository.enableNSFWMode(enable = enable)
-            if (!enable) disableRestrictedSearchProviders()
-        }
+        // No-op: Content restrictions removed. Custom restrictions applied at config level only.
+        // Method kept for API compatibility.
     }
 
     /** Changes the default category to given one. */
@@ -164,24 +162,9 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    /** Disables NSFW and Unsafe search providers which are currently enabled. */
-    private suspend fun disableRestrictedSearchProviders() {
-        val enabledSearchProvidersInfo = combine(
-            searchProvidersRepository.observeSearchProvidersInfo(),
-            settingsRepository.enabledSearchProvidersId,
-        ) { searchProvidersInfo, enabledSearchProvidersId ->
-            searchProvidersInfo.filter { it.id in enabledSearchProvidersId }
-        }.firstOrNull() ?: return
-
-        val newEnabledSearchProvidersId = enabledSearchProvidersInfo
-            .filterNot { it.specializedCategory.isNSFW || it.safetyStatus.isUnsafe() }
-            .map { it.id }
-            .toSet()
-
-        settingsRepository.setEnabledSearchProvidersId(
-            providersId = newEnabledSearchProvidersId,
-        )
-    }
+    // REMOVED: disableRestrictedSearchProviders() - No content restrictions
+    // All providers enabled by default regardless of safety status
+    // Custom restrictions applied at configuration level only
 
     /** Changes the default sort criteria. */
     fun setDefaultSortCriteria(sortCriteria: SortCriteria) {

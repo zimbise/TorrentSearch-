@@ -44,7 +44,7 @@ class BookmarksViewModel @Inject constructor(
         settingsRepository.bookmarksSortOptions,
     ) { filterQuery, bookmarks, nsfwModeEnabled, sortOptions ->
         val bookmarks = bookmarks
-            .filter { nsfwModeEnabled || !it.isNSFW() }
+            // NO CONTENT RESTRICTIONS: Show all bookmarks regardless of type
             .filter { filterQuery.isBlank() || it.name.contains(filterQuery, ignoreCase = true) }
             .customSort(criteria = sortOptions.criteria, order = sortOptions.order)
 

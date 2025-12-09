@@ -123,7 +123,7 @@ class SearchViewModel @Inject constructor(
             .filter {
                 filterOptions.searchProviders.isEmpty() || it.providerId in enabledSearchProvidersId
             }
-            .filter { nsfwModeEnabled || !it.isNSFW() }
+            // NO CONTENT RESTRICTIONS: Show all results regardless of NSFW/type status
             .filter { filterOptions.deadTorrents || !it.isDead() }
             .filter { filterQuery.isBlank() || it.name.contains(filterQuery, ignoreCase = true) }
             .sortedWith(comparator = sortComparator)

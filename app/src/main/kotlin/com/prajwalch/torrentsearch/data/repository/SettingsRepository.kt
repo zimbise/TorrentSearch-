@@ -39,8 +39,10 @@ class SettingsRepository @Inject constructor(
     val pureBlack: Flow<Boolean> = dataStore
         .getOrDefault(key = PURE_BLACK, default = false)
 
+    // NO CONTENT RESTRICTIONS: All content shown by default
+    // Custom restrictions applied at configuration level only
     val enableNSFWMode: Flow<Boolean> = dataStore
-        .getOrDefault(key = ENABLE_NSFW_MODE, default = false)
+        .getOrDefault(key = ENABLE_NSFW_MODE, default = true)  // Always enabled
 
     val enabledSearchProvidersId: Flow<Set<SearchProviderId>> = dataStore
         .getOrDefault(

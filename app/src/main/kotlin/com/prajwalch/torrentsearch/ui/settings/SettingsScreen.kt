@@ -221,18 +221,20 @@ private fun GeneralSettings(modifier: Modifier = Modifier) {
             )
         }
 
-        SettingsListItem(
-            onClick = { viewModel.enableNSFWMode(!settings.enableNSFWMode) },
-            icon = R.drawable.ic_18_up_rating,
-            headline = R.string.settings_enable_nsfw_mode,
-            supportingContent = stringResource(R.string.settings_enable_nsfw_mode_summary),
-            trailingContent = {
-                Switch(
-                    checked = settings.enableNSFWMode,
-                    onCheckedChange = { viewModel.enableNSFWMode(it) },
-                )
-            },
-        )
+        // REMOVED: NSFW mode toggle - No content restrictions by default
+        // All content shown regardless of type
+        // SettingsListItem(
+        //     onClick = { viewModel.enableNSFWMode(!settings.enableNSFWMode) },
+        //     icon = R.drawable.ic_18_up_rating,
+        //     headline = R.string.settings_enable_nsfw_mode,
+        //     supportingContent = stringResource(R.string.settings_enable_nsfw_mode_summary),
+        //     trailingContent = {
+        //         Switch(
+        //             checked = settings.enableNSFWMode,
+        //             onCheckedChange = { viewModel.enableNSFWMode(it) },
+        //         )
+        //     },
+        // )
     }
 }
 

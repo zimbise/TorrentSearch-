@@ -1,0 +1,16 @@
+plugins {
+    kotlin("jvm") version "1.5.31"
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation(kotlin("stdlib"))
+    testImplementation("org.junit.jupiter:junit-jupiter:5.8.1")
+}
+
+tasks.test {
+    useJUnitPlatform()
+}

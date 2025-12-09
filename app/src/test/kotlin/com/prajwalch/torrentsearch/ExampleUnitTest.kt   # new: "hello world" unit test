@@ -1,0 +1,13 @@
+dependencies {
+    testImplementation("org.junit.jupiter:junit-jupiter:5.8.1")
+}
+
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
+
+class ExampleUnitTest {
+    @Test
+    fun helloWorld() {
+        assertEquals(1 + 1, 2)
+    }
+}

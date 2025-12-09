@@ -1,0 +1,7 @@
+class HelloInstrumentedTest : InstrumentationTest() {
+    @Test
+    fun useAppContext() {
+        val appContext = InstrumentationRegistry.getInstrumentation().targetContext
+        assertEquals("com.prajwalch.torrentsearch", appContext.packageName)
+    }
+}
