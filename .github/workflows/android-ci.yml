@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: Build Debug APK
+    name: Build User APK (non-debuggable)
     runs-on: ubuntu-latest
     env:
       ANDROID_SDK_ROOT: ${{ runner.temp }}/android-sdk
@@ -52,14 +52,34 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      - name: Build debug APK
-        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
+      - name: Build non-debuggable user APK
+        run: ./gradlew :app:assembleUserDebug --no-daemon --stacktrace
 
       - name: Run unit tests
-        run: ./gradlew :app:testDebugUnitTest --no-daemon --stacktrace
+        run: ./gradlew :app:testUserDebugUnitTest --no-daemon --stacktrace
 
-      - name: Upload debug APK
+      - name: Upload user APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: app-user-apk
+          path: app/build/outputs/apk/userDebug/app-userDebug.apk
+
+      - name: Create Release and Upload APK
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: app/build/outputs/apk/userDebug/app-userDebug.apk
+          tag_name: nightly-${{ github.run_number }}
+          name: "Nightly Build #${{ github.run_number }}"
+          body: |
+            Automatic nightly build from commit ${{ github.sha }}
+            
+            **Installation:**
+            1. Download `app-userDebug.apk` from the assets below
+            2. Transfer to your Android phone or use `adb install -r app-userDebug.apk`
+            3. Install and run normally (non-debuggable)
+            
+            Built with commit: [${{ github.sha }}](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

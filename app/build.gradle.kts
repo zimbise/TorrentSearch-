@@ -37,6 +37,15 @@ android {
             isDebuggable = true
             signingConfig = signingConfigs.getByName("debug")
         }
+        // A debug-derived build type signed with debug key but non-debuggable
+        create("userDebug") {
+            initWith(debug)
+            // Ensure the variant is not debuggable so it behaves like a normal user APK
+            isDebuggable = false
+            // Optional: install side-by-side with other builds
+            applicationIdSuffix = ".user"
+            signingConfig = signingConfigs.getByName("debug")
+        }
     }
 
     compileOptions {
