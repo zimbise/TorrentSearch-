@@ -63,6 +63,7 @@ jobs:
         with:
           name: app-user-apk
           path: app/build/outputs/apk/userDebug/app-userDebug.apk
+          retention-days: 90
 
       - name: Create Release and Upload APK
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -83,3 +84,14 @@ jobs:
           prerelease: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Latest Release Tag
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -d latest || true
+          git push origin :refs/tags/latest || true
+          git tag latest
+          git push origin latest --force
+

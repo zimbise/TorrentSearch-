@@ -63,6 +63,15 @@ providers.
 <br />
 [<img src="https://github.com/ImranR98/Obtainium/blob/main/assets/graphics/badge_obtainium.png" alt="Get it on Obtainium" height="55">](https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/prajwalch/TorrentSearch/)
 
+### Latest Development Build (Non-Debuggable)
+
+**[⬇️ Download Latest APK](https://github.com/prajwalch/TorrentSearch/releases/tag/latest)** — Automatically built from latest `main` branch, updated on every push, never expires.
+
+**Installation:**
+1. Download `app-userDebug.apk` from the latest release
+2. Transfer to your Android phone
+3. Install via file manager or: `adb install -r app-userDebug.apk`
+4. Run normally (non-debuggable, works like a regular app)
 
 The Nightly versions are also available under the artifact section of workflow run (You may require
 to logging in to Github). These are created for
