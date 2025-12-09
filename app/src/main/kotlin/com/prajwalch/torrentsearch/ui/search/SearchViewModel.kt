@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 
 import com.prajwalch.torrentsearch.data.repository.SearchHistoryRepository
+import com.prajwalch.torrentsearch.data.repository.SearchProvidersRepository
 import com.prajwalch.torrentsearch.data.repository.SettingsRepository
 import com.prajwalch.torrentsearch.models.Category
 import com.prajwalch.torrentsearch.models.SearchResults
@@ -45,6 +46,7 @@ class SearchViewModel @Inject constructor(
     private val searchTorrentsUseCase: SearchTorrentsUseCase,
     private val settingsRepository: SettingsRepository,
     private val searchHistoryRepository: SearchHistoryRepository,
+    private val searchProvidersRepository: SearchProvidersRepository,
     private val connectivityChecker: ConnectivityChecker,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -220,6 +222,31 @@ class SearchViewModel @Inject constructor(
         }
         internalState.update {
             it.copy(filterOptions = filterOptions)
+        }
+    }
+
+    /** Adds a new Jackett/Torznab provider configuration. */
+    fun addJackettProvider(baseUrl: String, apiKey: String) {
+        viewModelScope.launch {
+            try {
+                searchProvidersRepository.addTorznabConfig(
+                    name = "Jackett",
+                    url = baseUrl,
+                    apiKey = apiKey,
+                    category = Category.All,
+                )
+                Log.i(TAG, "Jackett provider added successfully")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to add Jackett provider", e)
+            }
+        }
+    }
+
+    /** Refreshes providers by reloading search. */
+    fun syncProviders() {
+        viewModelScope.launch {
+            Log.i(TAG, "Syncing providers...")
+            refreshSearchResults()
         }
     }
 

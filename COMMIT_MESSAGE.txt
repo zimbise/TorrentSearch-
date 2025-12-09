@@ -1,0 +1,44 @@
+feat: Add Jackett API key integration with sync button in SearchScreen
+
+## Features
+
+- **New UI Component**: JackettApiKeyDialog for adding Jackett/Prowlarr providers
+  - Material 3 AlertDialog design
+  - Input validation for base URL and API key
+  - Clean, user-friendly interface
+
+- **Enhanced SearchViewModel**:
+  - `addJackettProvider()`: Stores Jackett config in Room DB via SearchProvidersRepository
+  - `syncProviders()`: Refreshes all providers and reloads search results
+  - Proper error handling with logging
+
+- **Updated SearchScreen**:
+  - Two new icon buttons in top app bar (next to search/sort/filter, before settings):
+    1. **Sync Button** (refresh icon): Triggers provider refresh
+    2. **Add Jackett Button** (plus icon): Opens API key input dialog
+
+## Architecture
+
+- Integrates seamlessly with existing SearchProvidersRepository
+- Torznab configs stored in Room DB (torznab_configs table)
+- Search results combine built-in + Jackett providers with parallel execution
+- Incremental result streaming to UI via channelFlow
+
+## Files
+
+- **Created**: `JackettApiKeyDialog.kt` - Reusable dialog component
+- **Modified**: 
+  - `SearchViewModel.kt` - Added provider management methods
+  - `SearchScreen.kt` - Added UI buttons and dialog integration
+
+## Testing
+
+✓ No compile errors
+✓ Follows existing code patterns and conventions
+✓ Uses existing dependencies (Material 3, Hilt, Room, Coroutines)
+✓ Proper error handling and logging
+✓ All imports verified
+
+## Related Issues
+
+Implements UI for Jackett/Torznab integration with sync functionality.

@@ -62,6 +62,7 @@ import com.prajwalch.torrentsearch.models.Torrent
 import com.prajwalch.torrentsearch.providers.SearchProviderId
 import com.prajwalch.torrentsearch.ui.components.ArrowBackIconButton
 import com.prajwalch.torrentsearch.ui.components.EmptyPlaceholder
+import com.prajwalch.torrentsearch.ui.components.JackettApiKeyDialog
 import com.prajwalch.torrentsearch.ui.components.LazyColumnWithScrollbar
 import com.prajwalch.torrentsearch.ui.components.ScrollToTopFAB
 import com.prajwalch.torrentsearch.ui.components.SearchBar
@@ -99,6 +100,7 @@ fun SearchScreen(
     var showSearchBar by remember { mutableStateOf(false) }
     var showSortOptions by remember(uiState.sortOptions) { mutableStateOf(false) }
     var showFilterOptions by remember { mutableStateOf(false) }
+    var showJackettDialog by remember { mutableStateOf(false) }
 
     val isFirstResultVisible by remember {
         derivedStateOf { lazyListState.firstVisibleItemIndex <= 1 }
@@ -111,6 +113,16 @@ fun SearchScreen(
             filterOptions = uiState.filterOptions,
             onToggleSearchProvider = viewModel::toggleSearchProviderResults,
             onToggleDeadTorrents = viewModel::toggleDeadTorrents,
+        )
+    }
+
+    if (showJackettDialog) {
+        JackettApiKeyDialog(
+            onDismiss = { showJackettDialog = false },
+            onConfirm = { baseUrl, apiKey ->
+                viewModel.addJackettProvider(baseUrl, apiKey)
+                showJackettDialog = false
+            },
         )
     }
 
@@ -154,6 +166,24 @@ fun SearchScreen(
                 Icon(
                     painter = painterResource(R.drawable.ic_filter_alt),
                     contentDescription = stringResource(R.string.search_action_filter),
+                )
+            }
+            // Sync providers button
+            IconButton(
+                onClick = { viewModel.syncProviders() },
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_refresh),
+                    contentDescription = "Sync providers",
+                )
+            }
+            // Add Jackett API key button
+            IconButton(
+                onClick = { showJackettDialog = true },
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_add),
+                    contentDescription = "Add Jackett provider",
                 )
             }
         }
