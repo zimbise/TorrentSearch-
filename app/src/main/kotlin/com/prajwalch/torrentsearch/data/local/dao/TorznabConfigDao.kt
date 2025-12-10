@@ -21,6 +21,9 @@ interface TorznabConfigDao {
     @Query("SELECT * from torznab_configs where id=:id")
     suspend fun findById(id: String): TorznabConfigEntity?
 
+    @Query("SELECT * from torznab_configs where url=:url LIMIT 1")
+    suspend fun findByUrl(url: String): TorznabConfigEntity?
+
     @Query("SELECT COUNT(id) from torznab_configs")
     fun observeCount(): Flow<Int>
 

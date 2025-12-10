@@ -246,6 +246,13 @@ class SearchViewModel @Inject constructor(
     fun syncProviders() {
         viewModelScope.launch {
             Log.i(TAG, "Syncing providers...")
+            try {
+                // Sync any saved Jackett master configs and then refresh search results
+                searchProvidersRepository.syncAllJackettConfigs()
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to sync providers: ${e.message}")
+            }
+
             refreshSearchResults()
         }
     }

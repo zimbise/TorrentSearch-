@@ -70,7 +70,33 @@ abstract class TorrentSearchDatabase : RoomDatabase() {
                 name = DB_NAME,
             )
 
-            return databaseBuilder.build().also { Instance = it }
+            val db = databaseBuilder.build().also { Instance = it }
+
+            // Pre-seed a Jackett master Torznab config if the DB is empty.
+            // This inserts a single "Jackett" entry pointing to the user's
+            // local Jackett server. The sync button will expand this into
+            // per-indexer Torznab configs by querying the Jackett API.
+            try {
+                kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                    val dao = db.torznabConfigDao()
+                    val count = dao.observeCount().first()
+                    if (count == 0) {
+                        val jackettApiKey = "sfbizvj42r5h41a2aojb2t29zougqd3s"
+                        val jackettBaseUrl = "http://192.168.1.175:9117"
+                        val entity = TorznabConfigEntity(
+                            name = "Jackett",
+                            url = jackettBaseUrl,
+                            apiKey = jackettApiKey,
+                            category = com.prajwalch.torrentsearch.models.Category.All.name,
+                        )
+                        dao.insert(entity = entity)
+                    }
+                }
+            } catch (_: Exception) {
+                // Do not crash if pre-seed fails.
+            }
+
+            return db
         }
     }
 }

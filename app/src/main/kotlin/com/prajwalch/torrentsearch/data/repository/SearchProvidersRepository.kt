@@ -33,10 +33,19 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
+import com.prajwalch.torrentsearch.network.HttpClient
+import kotlinx.coroutines.flow.first
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.int
 import javax.inject.Inject
 
 class SearchProvidersRepository @Inject constructor(
     private val torznabConfigDao: TorznabConfigDao,
+    private val httpClient: HttpClient,
 ) {
     private val builtins = listOf(
         AnimeTosho(),
@@ -131,6 +140,100 @@ class SearchProvidersRepository @Inject constructor(
             category = category.name,
         )
         torznabConfigDao.insert(entity = configEntity)
+    }
+
+    /**
+     * Synchronise Torznab providers from a Jackett instance.
+     *
+     * This function expects the Jackett base URL (for example: http://192.168.1.175:9117)
+     * and the Jackett API key. It will query Jackett's indexers list and
+     * add or update Torznab configs for each indexer so they show up in the app.
+     */
+    suspend fun syncFromJackett(baseUrl: String, apiKey: String) {
+        // Normalize base url
+        val base = baseUrl.trimEnd { it == '/' }
+
+        // Jackett indexers list endpoint (v2)
+        val indexersUrl = "$base/api/v2.0/indexers"
+
+        val json = httpClient.withExceptionHandler { httpClient.getJson("$indexersUrl?apikey=$apiKey") }
+
+        when (json) {
+            is com.prajwalch.torrentsearch.network.HttpClientResponse.Ok<*> -> {
+                val element = json.result as? JsonElement ?: return
+                val array = element.jsonArray
+
+                for (item in array) {
+                    val obj = item.jsonObject
+                    // Try a few fields commonly present in Jackett responses
+                    val title = obj["Title"]?.jsonPrimitive?.contentOrNull
+                        ?: obj["title"]?.jsonPrimitive?.contentOrNull
+                        ?: obj["Name"]?.jsonPrimitive?.contentOrNull
+                        ?: obj["name"]?.jsonPrimitive?.contentOrNull
+                        ?: "Unknown"
+
+                    // Jackett exposes an "Id" or "IndexerId" which we can use
+                    val id = obj["Id"]?.jsonPrimitive?.contentOrNull
+                        ?: obj["Id"]?.jsonPrimitive?.contentOrNull
+                        ?: obj["IndexerId"]?.jsonPrimitive?.contentOrNull
+                        ?: obj["id"]?.jsonPrimitive?.contentOrNull
+
+                    // If no id available, try to see if the object contains a 'Config' with a 'Url' we can reuse
+                    val torznabPath = if (id != null) {
+                        // Construct Torznab path for the indexer
+                        "$base/api/v2.0/indexers/$id/results/torznab"
+                    } else {
+                        // Fallback: try to use any URL present in the config
+                        val configUrl = obj["Config"]?.jsonObject?.get("Url")?.jsonPrimitive?.contentOrNull
+                        configUrl ?: continue
+                    }
+
+                    // Check if config already exists for this URL
+                    val existing = torznabConfigDao.findByUrl(torznabPath)
+
+                    if (existing != null) {
+                        // Update existing entry with latest name/apiKey
+                        torznabConfigDao.update(
+                            existing.copy(
+                                name = title,
+                                url = torznabPath,
+                                apiKey = apiKey,
+                            ),
+                        )
+                    } else {
+                        // Insert new config
+                        val entity = com.prajwalch.torrentsearch.data.local.entities.TorznabConfigEntity(
+                            name = title,
+                            url = torznabPath,
+                            apiKey = apiKey,
+                            category = Category.All.name,
+                        )
+                        torznabConfigDao.insert(entity = entity)
+                    }
+                }
+            }
+            else -> {
+                // Quietly ignore network errors here — caller can show a message if needed
+                return
+            }
+        }
+    }
+
+    /**
+     * Finds all torznab configs labelled as a Jackett master config (name == "Jackett")
+     * and performs sync for each. This allows the UI to store a single Jackett entry
+     * and let the app pull all indexers from it.
+     */
+    suspend fun syncAllJackettConfigs() {
+        val entities = torznabConfigDao.observeAll().first()
+        val jackettEntries = entities.filter { it.name.equals("Jackett", ignoreCase = true) }
+        for (entry in jackettEntries) {
+            try {
+                syncFromJackett(baseUrl = entry.url, apiKey = entry.apiKey)
+            } catch (_: Exception) {
+                // continue on errors
+            }
+        }
     }
 
     suspend fun findTorznabConfig(id: SearchProviderId): TorznabConfig? {
