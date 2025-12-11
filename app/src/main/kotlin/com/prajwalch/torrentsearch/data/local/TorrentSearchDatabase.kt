@@ -1,7 +1,6 @@
 package com.prajwalch.torrentsearch.data.local
 
 import android.content.Context
-
 import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.DeleteColumn
@@ -9,13 +8,17 @@ import androidx.room.RenameTable
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.AutoMigrationSpec
-
 import com.prajwalch.torrentsearch.data.local.dao.BookmarkedTorrentDao
 import com.prajwalch.torrentsearch.data.local.dao.SearchHistoryDao
 import com.prajwalch.torrentsearch.data.local.dao.TorznabConfigDao
 import com.prajwalch.torrentsearch.data.local.entities.BookmarkedTorrent
 import com.prajwalch.torrentsearch.data.local.entities.SearchHistoryEntity
 import com.prajwalch.torrentsearch.data.local.entities.TorznabConfigEntity
+import com.prajwalch.torrentsearch.models.Category
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 /** Application database. */
 @Database(
@@ -36,6 +39,7 @@ import com.prajwalch.torrentsearch.data.local.entities.TorznabConfigEntity
     ],
 )
 abstract class TorrentSearchDatabase : RoomDatabase() {
+
     abstract fun bookmarkedTorrentDao(): BookmarkedTorrentDao
 
     abstract fun searchHistoryDao(): SearchHistoryDao
@@ -77,17 +81,21 @@ abstract class TorrentSearchDatabase : RoomDatabase() {
             // local Jackett server. The sync button will expand this into
             // per-indexer Torznab configs by querying the Jackett API.
             try {
-                kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                // Use an explicit IO coroutine scope instead of raw GlobalScope
+                val ioScope = CoroutineScope(Dispatchers.IO)
+                ioScope.launch {
                     val dao = db.torznabConfigDao()
                     val count = dao.observeCount().first()
                     if (count == 0) {
                         val jackettApiKey = "sfbizvj42r5h41a2aojb2t29zougqd3s"
-                        val jackettBaseUrl = "http://192.168.1.175:9117"
+                        // NOTE: trailing slash is often safer for Torznab; adjust if needed elsewhere.
+                        val jackettBaseUrl = "http://192.168.1.175:9117/"
+
                         val entity = TorznabConfigEntity(
                             name = "Jackett",
                             url = jackettBaseUrl,
                             apiKey = jackettApiKey,
-                            category = com.prajwalch.torrentsearch.models.Category.All.name,
+                            category = Category.All.name,
                         )
                         dao.insert(entity = entity)
                     }
