@@ -1,4 +1,4 @@
-name: Android CI - Build & Release
+name: Android CI - Build Test APK
 
 on:
   push:
@@ -7,10 +7,8 @@ on:
 
 jobs:
   build:
-    name: Build Non-Debuggable APK
+    name: Build Test APK
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
     - name: Checkout
@@ -54,7 +52,7 @@ jobs:
     - name: Make gradlew executable
       run: chmod +x ./gradlew
 
-    - name: Build non-debuggable APK
+    - name: Build APK
       run: |
         ./gradlew clean :app:assembleUserDebug \
           --no-daemon \
@@ -72,52 +70,9 @@ jobs:
         echo "APK built successfully:"
         ls -lh app/build/outputs/apk/userDebug/app-userDebug.apk
 
-    - name: Upload Artifact (90 days)
+    - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: app-userDebug-apk
+        name: TorrentSearch-Test-APK
         path: app/build/outputs/apk/userDebug/app-userDebug.apk
-        retention-days: 90
-
-    - name: Create Nightly Release
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      uses: softprops/action-gh-release@v1
-      with:
-        files: app/build/outputs/apk/userDebug/app-userDebug.apk
-        tag_name: nightly-${{ github.run_number }}
-        name: "Nightly Build #${{ github.run_number }}"
-        body: |
-          Non-Debuggable APK
-
-          Built from commit ${{ github.sha }}
-
-          Includes:
-          - Jackett/Torznab integration
-          - Provider fixes
-          - Sync button
-          - Material 3 UI
-          - History, bookmarks, safe mode
-
-          Download the APK from this release.
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Update Latest Tag
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      run: |
-        git config --global user.name "github-actions[bot]"
-        git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-        git tag -d latest 2>/dev/null || true
-        git push origin :refs/tags/latest 2>/dev/null || true
-        git tag latest
-        git push origin latest --force
-
-    - name: Build Summary
-      if: always()
-      run: |
-        echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
-        echo "- Variant: userDebug (non-debuggable)" >> $GITHUB_STEP_SUMMARY
-        echo "- Status: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Download Latest" >> $GITHUB_STEP_SUMMARY
-        echo "https://github.com/${{ github.repository }}/releases/tag/latest" >> $GITHUB_STEP_SUMMARY
+        retention-days: 30
