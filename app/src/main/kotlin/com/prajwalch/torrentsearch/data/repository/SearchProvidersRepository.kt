@@ -5,6 +5,7 @@ import com.prajwalch.torrentsearch.data.local.entities.TorznabConfigEntity
 import com.prajwalch.torrentsearch.data.local.entities.toSearchProviderInfo
 import com.prajwalch.torrentsearch.data.local.entities.toTorznabConfig
 import com.prajwalch.torrentsearch.models.Category
+import com.prajwalch.torrentsearch.network.HttpClient
 import com.prajwalch.torrentsearch.providers.AnimeTosho
 import com.prajwalch.torrentsearch.providers.BitSearch
 import com.prajwalch.torrentsearch.providers.Eztv
@@ -26,27 +27,25 @@ import com.prajwalch.torrentsearch.providers.TorznabSearchProvider
 import com.prajwalch.torrentsearch.providers.UIndex
 import com.prajwalch.torrentsearch.providers.XXXClub
 import com.prajwalch.torrentsearch.providers.Yts
-
+import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
-
-import com.prajwalch.torrentsearch.network.HttpClient
-import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.int
-import javax.inject.Inject
 
 class SearchProvidersRepository @Inject constructor(
     private val torznabConfigDao: TorznabConfigDao,
     private val httpClient: HttpClient,
 ) {
+
     private val builtins = listOf(
         AnimeTosho(),
         BitSearch(),
@@ -79,7 +78,7 @@ class SearchProvidersRepository @Inject constructor(
 
         return combine(
             builtinSearchProvidersInfoFlow,
-            torznabSearchProvidersInfoFlow
+            torznabSearchProvidersInfoFlow,
         ) { builtinInfos, torznabInfos ->
             builtinInfos + torznabInfos
         }
@@ -97,19 +96,9 @@ class SearchProvidersRepository @Inject constructor(
         }
 
         return searchProviders.filter {
-            // NOTE: Currently, if the search provider's specialized is set to
-            //       `All` we can't surely know whether the underlying server
-            //       supports setting specific category or not.
-            //
-            //       For example: TorrentCSV does allow to search any type of
-            //       torrent but it doesn't support setting specific category
-            //       explicitly. Meaning, we can't ask it to search torrents
-            //       of specific category.
-            //
-            //       To address this issue, force each and every search provider
-            //       to list out all categories they allow or support to set
-            //       explicitly instead of single `specializedCategory`.
-            (it.info.specializedCategory == Category.All) || (category == it.info.specializedCategory)
+            // NOTE: see original comment in your code.
+            (it.info.specializedCategory == Category.All) ||
+                (category == it.info.specializedCategory)
         }
     }
 
@@ -122,8 +111,8 @@ class SearchProvidersRepository @Inject constructor(
         return combine(
             builtinSearchProvidersFlow,
             torznabSearchProvidersFlow,
-        ) { builtins, externals ->
-            builtins + externals
+        ) { builtinProviders, externalProviders ->
+            builtinProviders + externalProviders
         }.firstOrNull().orEmpty()
     }
 
@@ -150,13 +139,15 @@ class SearchProvidersRepository @Inject constructor(
      * add or update Torznab configs for each indexer so they show up in the app.
      */
     suspend fun syncFromJackett(baseUrl: String, apiKey: String) {
-        // Normalize base url
+        // Normalize base url (no trailing slash)
         val base = baseUrl.trimEnd { it == '/' }
 
         // Jackett indexers list endpoint (v2)
         val indexersUrl = "$base/api/v2.0/indexers"
 
-        val json = httpClient.withExceptionHandler { httpClient.getJson("$indexersUrl?apikey=$apiKey") }
+        val json = httpClient.withExceptionHandler {
+            httpClient.getJson("$indexersUrl?apikey=$apiKey")
+        }
 
         when (json) {
             is com.prajwalch.torrentsearch.network.HttpClientResponse.Ok<*> -> {
@@ -164,19 +155,19 @@ class SearchProvidersRepository @Inject constructor(
                 val array = element.jsonArray
 
                 for (item in array) {
-                    val obj = item.jsonObject
+                    val obj: JsonObject = item.jsonObject
+
                     // Try a few fields commonly present in Jackett responses
-                    val title = obj["Title"]?.jsonPrimitive?.contentOrNull
-                        ?: obj["title"]?.jsonPrimitive?.contentOrNull
-                        ?: obj["Name"]?.jsonPrimitive?.contentOrNull
-                        ?: obj["name"]?.jsonPrimitive?.contentOrNull
+                    val title = obj["Title"]?.jsonPrimitive?.safeContentOrNull()
+                        ?: obj["title"]?.jsonPrimitive?.safeContentOrNull()
+                        ?: obj["Name"]?.jsonPrimitive?.safeContentOrNull()
+                        ?: obj["name"]?.jsonPrimitive?.safeContentOrNull()
                         ?: "Unknown"
 
                     // Jackett exposes an "Id" or "IndexerId" which we can use
-                    val id = obj["Id"]?.jsonPrimitive?.contentOrNull
-                        ?: obj["Id"]?.jsonPrimitive?.contentOrNull
-                        ?: obj["IndexerId"]?.jsonPrimitive?.contentOrNull
-                        ?: obj["id"]?.jsonPrimitive?.contentOrNull
+                    val id = obj["Id"]?.jsonPrimitive?.safeContentOrNull()
+                        ?: obj["IndexerId"]?.jsonPrimitive?.safeContentOrNull()
+                        ?: obj["id"]?.jsonPrimitive?.safeContentOrNull()
 
                     // If no id available, try to see if the object contains a 'Config' with a 'Url' we can reuse
                     val torznabPath = if (id != null) {
@@ -184,7 +175,11 @@ class SearchProvidersRepository @Inject constructor(
                         "$base/api/v2.0/indexers/$id/results/torznab"
                     } else {
                         // Fallback: try to use any URL present in the config
-                        val configUrl = obj["Config"]?.jsonObject?.get("Url")?.jsonPrimitive?.contentOrNull
+                        val configUrl = obj["Config"]
+                            ?.jsonObject
+                            ?.get("Url")
+                            ?.jsonPrimitive
+                            ?.safeContentOrNull()
                         configUrl ?: continue
                     }
 
@@ -202,7 +197,7 @@ class SearchProvidersRepository @Inject constructor(
                         )
                     } else {
                         // Insert new config
-                        val entity = com.prajwalch.torrentsearch.data.local.entities.TorznabConfigEntity(
+                        val entity = TorznabConfigEntity(
                             name = title,
                             url = torznabPath,
                             apiKey = apiKey,
@@ -259,5 +254,12 @@ class SearchProvidersRepository @Inject constructor(
 
     suspend fun deleteTorznabConfig(id: SearchProviderId) {
         torznabConfigDao.deleteById(id = id)
+    }
+
+    // Local helper to safely get string content without throwing
+    private fun JsonPrimitive.safeContentOrNull(): String? = try {
+        this.content
+    } catch (_: Exception) {
+        null
     }
 }
