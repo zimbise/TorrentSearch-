@@ -27,8 +27,9 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            // Kotlin DSL: use isDebuggable only
             isDebuggable = false
-            debuggable = false
+
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -36,8 +37,9 @@ android {
         }
         debug {
             applicationIdSuffix = ".debug"
+            // Kotlin DSL: use isDebuggable only
             isDebuggable = true
-            debuggable = true
+
             signingConfig = signingConfigs.getByName("debug")
         }
         // A debug-derived build type signed with debug key but FULLY NON-DEBUGGABLE
@@ -45,12 +47,13 @@ android {
         create("userDebug") {
             applicationIdSuffix = ".user"
             signingConfig = signingConfigs.getByName("debug")
-            matchingFallbacks = mutableListOf("debug")
-            
+
+            // matchingFallbacks is a val; modify it instead of reassigning
+            matchingFallbacks.add("debug")
+
             // Explicitly disable all debugging features
             isDebuggable = false
-            debuggable = false
-            
+
             // Make sure we don't inherit unwanted flags from debug
             isMinifyEnabled = false
             isShrinkResources = false
