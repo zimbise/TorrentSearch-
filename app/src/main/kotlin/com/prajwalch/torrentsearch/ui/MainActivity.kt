@@ -26,6 +26,11 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    companion object {
+        private const val TAG = "MainActivity"
+    }
+
     private var startDestination = Screens.HOME
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,14 +39,18 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
 
-        onBackPressedDispatcher.addCallback(this) { moveTaskToBack(true) }
+        // Disable default back behavior; move app to background instead.
+        onBackPressedDispatcher.addCallback(this) {
+            moveTaskToBack(true)
+        }
+
         handleIntent()
 
         enableEdgeToEdge()
         setContent {
             val mainViewModel = hiltViewModel<MainViewModel>()
 
-            // ✅ AUTO‑SYNC JACKETT ON APP START
+            // Auto‑sync Jackett configs when the app starts.
             LaunchedEffect(Unit) {
                 mainViewModel.syncAllJackettConfigs()
             }
@@ -88,7 +97,9 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            else -> {}
+            else -> {
+                // no-op for other actions
+            }
         }
     }
 
@@ -140,3 +151,47 @@ class MainActivity : ComponentActivity() {
             startActivity(intent)
             true
         } catch (_: ActivityNotFoundException) {
+            val msg = getString(R.string.main_no_torrent_client_found_message)
+            showToast(msg)
+            false
+        }
+    }
+
+    private fun shareMagnetLink(magnetUri: MagnetUri) {
+        val text = magnetUri.toString()
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, text)
+        }
+        try {
+            startActivity(Intent.createChooser(shareIntent, getString(R.string.main_share_magnet_link_title)))
+        } catch (_: ActivityNotFoundException) {
+            val msg = getString(R.string.main_no_app_found_to_share_message)
+            showToast(msg)
+        }
+    }
+
+    private fun openDescriptionPage(url: String) {
+        val uri = url.toUri()
+        val intent = Intent(Intent.ACTION_VIEW, uri)
+        try {
+            startActivity(intent)
+        } catch (_: ActivityNotFoundException) {
+            val msg = getString(R.string.main_no_browser_found_message)
+            showToast(msg)
+        }
+    }
+
+    private fun shareDescriptionPageUrl(url: String) {
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, url)
+        }
+        try {
+            startActivity(Intent.createChooser(shareIntent, getString(R.string.main_share_description_page_title)))
+        } catch (_: ActivityNotFoundException) {
+            val msg = getString(R.string.main_no_app_found_to_share_message)
+            showToast(msg)
+        }
+    }
+}
