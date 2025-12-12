@@ -20,7 +20,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-/** Application database. */
 @Database(
     entities = [
         BookmarkedTorrent::class,
@@ -41,67 +40,73 @@ import kotlinx.coroutines.launch
 abstract class TorrentSearchDatabase : RoomDatabase() {
 
     abstract fun bookmarkedTorrentDao(): BookmarkedTorrentDao
-
     abstract fun searchHistoryDao(): SearchHistoryDao
-
     abstract fun torznabConfigDao(): TorznabConfigDao
 
-    @DeleteColumn(tableName = "torznab_search_providers", columnName = "unsafeReason")
-    @RenameTable(fromTableName = "torznab_search_providers", toTableName = "torznab_configs")
+    @DeleteColumn(
+        tableName = "torznab_search_providers",
+        columnName = "unsafeReason",
+    )
+    @RenameTable(
+        fromTableName = "torznab_search_providers",
+        toTableName = "torznab_configs",
+    )
     class Migration2To3Spec : AutoMigrationSpec
 
     companion object {
-        /** Name of the database file. */
         private const val DB_NAME = "torrentsearch.db"
 
-        /**
-         * Single instance of the database.
-         *
-         * Recommended to re-use the reference once database is created.
-         */
-        private var Instance: TorrentSearchDatabase? = null
+        @Volatile
+        private var instance: TorrentSearchDatabase? = null
 
-        /** Returns the instance of the database. */
         fun getInstance(context: Context): TorrentSearchDatabase {
-            return Instance ?: createInstance(context = context)
+            val current = instance
+            if (current != null) return current
+
+            return createInstance(context).also { created ->
+                instance = created
+            }
         }
 
-        /** Creates, stores and returns the instance of the database. */
         private fun createInstance(context: Context): TorrentSearchDatabase {
-            val databaseBuilder = Room.databaseBuilder(
-                context = context,
-                klass = TorrentSearchDatabase::class.java,
-                name = DB_NAME,
+            val builder = Room.databaseBuilder(
+                context,
+                TorrentSearchDatabase::class.java,
+                DB_NAME,
             )
 
-            val db = databaseBuilder.build().also { Instance = it }
+            val db = builder.build()
 
-            // Pre-seed a Jackett master Torznab config if the DB is empty.
-            // This inserts a single "Jackett" entry pointing to the user's
-            // local Jackett server. The sync button will expand this into
-            // per-indexer Torznab configs by querying the Jackett API.
+            // Store reference for future calls.
+            instance = db
+
+            // When the database is first created and contains no Torznab configs,
+            // insert a single "Jackett" entry pointing at the user's local
+            // Jackett instance running on localhost. The app's sync logic will
+            // expand this into per-indexer configs by querying the Jackett API.
             try {
-                // Use an explicit IO coroutine scope instead of raw GlobalScope
                 val ioScope = CoroutineScope(Dispatchers.IO)
                 ioScope.launch {
-                    val dao = db.torznabConfigDao()
-                    val count = dao.observeCount().first()
-                    if (count == 0) {
-                        val jackettApiKey = "sfbizvj42r5h41a2aojb2t29zougqd3s"
-                        // NOTE: trailing slash is often safer for Torznab; adjust if needed elsewhere.
-                        val jackettBaseUrl = "http://192.168.1.175:9117/"
+                    val configDao = db.torznabConfigDao()
+                    val existingCount = configDao.observeCount().first()
 
-                        val entity = TorznabConfigEntity(
+                    if (existingCount == 0) {
+                        val jackettApiKey = "sfbizvj42r5h41a2aojb2t29zougqd3s"
+                        val jackettBaseUrl = "http://localhost:9117/"
+
+                        val initialConfig = TorznabConfigEntity(
                             name = "Jackett",
                             url = jackettBaseUrl,
                             apiKey = jackettApiKey,
                             category = Category.All.name,
                         )
-                        dao.insert(entity = entity)
+
+                        configDao.insert(initialConfig)
                     }
                 }
             } catch (_: Exception) {
-                // Do not crash if pre-seed fails.
+                // Swallow any errors here, since failure to pre-seed
+                // should not prevent the app from starting.
             }
 
             return db
