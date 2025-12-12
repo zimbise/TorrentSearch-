@@ -149,4 +149,9 @@
     <string name="settings_section_about">About</string>
     <string name="settings_version">Version</string>
     <string name="settings_source_code">Source code</string>
+<string name="main_no_torrent_client_found_message">No torrent client found to open this magnet link.</string>
+    <string name="main_share_magnet_link_title">Share magnet link</string>
+    <string name="main_no_app_found_to_share_message">No app found to share this content.</string>
+    <string name="main_no_browser_found_message">No browser found to open this link.</string>
+    <string name="main_share_description_page_title">Share description page</string>
 </resources>
